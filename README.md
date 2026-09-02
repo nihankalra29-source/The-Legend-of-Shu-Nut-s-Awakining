@@ -4,11 +4,11 @@ A small browser game inspired by *The Legend of Zelda: Tears of the Kingdom*
 (a world torn into two realms, a hero who fell from the sky, a shattered
 tyrant to confront) rendered in a *Deltarune*-style presentation: top-down
 pixel exploration with an Undertale/Deltarune-style FIGHT / ACT / SPARE
-bullet-dodging battle system.
+bullet-dodging battle system — plus a real multiplayer server with accounts,
+a shared world, chat commands, and moderation tools.
 
-No build step, no external art assets — everything (sprites, tiles, UI) is
-drawn with plain Canvas 2D from code, so it runs anywhere a static file can
-be served.
+Everything (sprites, tiles, UI) is drawn with plain Canvas 2D from code —
+no external art assets.
 
 ## Story
 
@@ -23,26 +23,81 @@ the King — by force, or by reminding him what a whole world was worth.
 
 - Move: Arrow Keys or WASD
 - Confirm / Interact / Advance text: `Z` or `Enter`
-- Back (in menus): `X`, `Shift`, or `Escape`
+- Back (in menus) / Leave multiplayer: `X`, `Shift`, or `Escape`
+- Chat / commands (multiplayer): `Enter` to open the chat box, `Enter` again to send
+
+## Single Player vs. Multiplayer
+
+From the title screen, choose:
+
+- **Single Player** — the story campaign described above, exactly as before.
+- **Multiplayer** — log in or sign up, then explore one shared world
+  together with every other connected player in real time.
+
+## Multiplayer accounts, roles & commands
+
+Signing up with the email **`nihankalra2015@gmail.com`** automatically
+grants the **OWNER** badge (gold, shown next to that player's name). Every
+other sign-up starts as a regular player.
+
+Anyone can use:
+- `/tpa <player>` — send a friendly teleport request to another player
+- `/tpaccept` / `/tpdeny` — accept or decline the most recent request sent to you
+- `/help` — list the commands available to your role
+
+The **OWNER** can additionally use:
+- `/op <player>` — promote a player to **ADMIN** (blue badge)
+- `/deop <player>` — demote an admin back to a regular player
+
+**ADMINS and the OWNER** can also use:
+- `/tp <player>` — teleport straight to a player, no request needed
+- `/ban <player> [reason]` — ban a player permanently
+- `/tempban <player> <time> [reason]` — ban temporarily, e.g. `/tempban Alex 2h griefing` (`s`/`m`/`h`/`d` units)
+- `/pardon <player>` — remove a player's ban
+
+Admins can't act on the owner or on other admins (only the owner can), so
+one admin can never ban, demote, or otherwise touch another admin or the
+owner.
+
+Accounts, roles, and bans are stored server-side in `server/data/users.json`
+(passwords are salted and hashed, never stored in plain text) and persist
+across restarts.
 
 ## Run it locally
 
-No dependencies to install — any static file server works:
+The combined server serves the game **and** powers multiplayer (accounts,
+the shared world, chat/commands) over one port:
 
 ```bash
+npm install
 npm run dev
-# or simply:
-npx serve .
-# or:
-python3 -m http.server 3000
 ```
 
-Then open the printed local URL (e.g. `http://localhost:3000`) in a browser.
+Then open `http://localhost:3000`. Single Player works immediately;
+Multiplayer will sign up/log in and connect to this same server.
 
-## Deploy to Vercel
+If you only want the static single-player build with no server at all:
+`npm run static` (serves the files as-is; the Multiplayer option won't
+be able to reach a server in that mode).
 
-This is a static site (`index.html` at the root), so Vercel needs no build
-command — `vercel.json` already sets `buildCommand: null`.
+## Deploying
+
+The game has two parts with different hosting needs:
+
+- **The client** (`index.html`, `style.css`, `src/`) is static and works
+  fine on Vercel — `vercel.json` is already set up for it (no build step).
+- **The multiplayer server** (`server/`) is a stateful Node process (it
+  holds WebSocket connections and an in-memory session table), which
+  doesn't fit Vercel's serverless model. Deploy `server/server.js` to a
+  host that runs a persistent Node process — e.g. Render, Railway, Fly.io,
+  or a small VPS — where it will serve the game *and* the multiplayer API
+  from one URL, which is the simplest setup.
+
+If you deploy the client and the multiplayer server to different domains,
+point the client at your server with a URL query param:
+`https://your-game.vercel.app/?server=https://your-server.example.com`.
+
+### Deploy to Vercel (client, or the whole app if you skip multiplayer)
 
 ```bash
 npm i -g vercel   # if you don't have it yet
@@ -50,18 +105,26 @@ vercel            # first deploy, follow the prompts
 vercel --prod     # promote to production
 ```
 
-Or connect the GitHub repo to a new Vercel project from the Vercel
-dashboard and it will deploy automatically on every push.
+Or connect the GitHub repo to a new Vercel project from the dashboard for
+automatic deploys on every push.
 
 ## Project structure
 
 ```
-index.html          entry point / canvas
-style.css           page chrome
-src/sprites.js       procedural pixel-art sprites (no image files)
-src/maps.js          tile maps, NPCs, chests, transitions
-src/dialogue.js      textbox system + all dialogue script
-src/battle.js        FIGHT / ACT / SPARE battle system + bullet patterns
-src/story.js         flags/inventory + dialogue-triggered story actions
-src/main.js          input, game state machine, overworld rendering, loop
+index.html            entry point / canvas / auth & chat overlays
+style.css              page chrome, overlay & chat styling
+src/sprites.js         procedural pixel-art sprites (no image files)
+src/maps.js            tile maps, NPCs, chests, transitions
+src/dialogue.js        textbox system + all dialogue script
+src/battle.js          FIGHT / ACT / SPARE battle system + bullet patterns
+src/story.js           flags/inventory + dialogue-triggered story actions
+src/auth-ui.js          sign-up/log-in overlay + session handling
+src/multiplayer.js      WebSocket client + chat UI
+src/main.js             input, game state machine, rendering, loop
+
+server/server.js       HTTP + WebSocket server, REST auth endpoints
+server/store.js         user accounts (hashing, roles, bans), JSON-file persisted
+server/auth.js          session tokens
+server/world.js         online-player registry, ban-status checks
+server/commands.js      /tpa, /tp, /ban, /tempban, /pardon, /op, /deop, /help
 ```

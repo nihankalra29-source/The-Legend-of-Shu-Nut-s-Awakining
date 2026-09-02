@@ -2,9 +2,15 @@
   "name": "legend-of-shu",
   "version": "1.0.0",
   "private": true,
-  "description": "The Legend of Shu, a Nut Between the Worlds - a browser game",
+  "description": "The Legend of Shu, a Nut Between the Worlds - a browser game with a multiplayer server",
+  "main": "server/server.js",
   "scripts": {
-    "dev": "npx --yes serve -l 3000 .",
-    "start": "npx --yes serve -l 3000 ."
+    "dev": "node server/server.js",
+    "start": "node server/server.js",
+    "static": "npx --yes serve -l 3000 ."
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "ws": "^8.18.0"
   }
 }

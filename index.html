@@ -11,14 +11,54 @@
 </head>
 <body>
   <div id="game-wrap">
-    <canvas id="screen" width="640" height="480"></canvas>
-    <div id="hint">Move: Arrow Keys / WASD &nbsp;|&nbsp; Confirm: Z or Enter &nbsp;|&nbsp; Back: X</div>
+    <div id="canvas-stack">
+      <canvas id="screen" width="640" height="480"></canvas>
+
+      <div id="auth-overlay" class="overlay" hidden>
+        <div class="panel">
+          <div class="tabs">
+            <button type="button" class="tab active" data-tab="login">Log In</button>
+            <button type="button" class="tab" data-tab="signup">Sign Up</button>
+          </div>
+
+          <form id="login-form" class="auth-form">
+            <label>Username<input type="text" id="login-username" autocomplete="username" required></label>
+            <label>Password<input type="password" id="login-password" autocomplete="current-password" required></label>
+            <button type="submit">Log In</button>
+            <p class="auth-error" id="login-error"></p>
+          </form>
+
+          <form id="signup-form" class="auth-form" hidden>
+            <label>Username<input type="text" id="signup-username" autocomplete="username" required></label>
+            <label>Email<input type="email" id="signup-email" autocomplete="email" required></label>
+            <label>Password<input type="password" id="signup-password" autocomplete="new-password" required></label>
+            <button type="submit">Sign Up</button>
+            <p class="auth-error" id="signup-error"></p>
+          </form>
+
+          <button type="button" id="auth-cancel" class="link-btn">&larr; Back</button>
+        </div>
+      </div>
+
+      <div id="chat-overlay" hidden>
+        <div id="chat-log"></div>
+        <input type="text" id="chat-input" placeholder="Press Enter to chat or type a /command..." maxlength="300">
+      </div>
+    </div>
+    <div id="hint">Move: Arrow Keys / WASD &nbsp;|&nbsp; Confirm: Z or Enter &nbsp;|&nbsp; Back: X &nbsp;|&nbsp; Chat: Enter (multiplayer)</div>
   </div>
+  <script>
+    // Override with ?server=https://your-multiplayer-server.example.com
+    // when the game is hosted separately from the multiplayer server.
+    window.SHU_SERVER_URL = new URLSearchParams(location.search).get('server') || '';
+  </script>
   <script src="src/sprites.js"></script>
   <script src="src/maps.js"></script>
   <script src="src/dialogue.js"></script>
   <script src="src/battle.js"></script>
   <script src="src/story.js"></script>
+  <script src="src/auth-ui.js"></script>
+  <script src="src/multiplayer.js"></script>
   <script src="src/main.js"></script>
 </body>
 </html>

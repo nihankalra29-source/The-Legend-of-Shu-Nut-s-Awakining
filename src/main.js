@@ -12,6 +12,7 @@ class Input {
     this.keysDown = new Set();
     this.justPressed = new Set();
     window.addEventListener('keydown', (e) => {
+      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
       if (!this.keysDown.has(e.code)) this.justPressed.add(e.code);
       this.keysDown.add(e.code);
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
@@ -37,6 +38,10 @@ class Game {
     this.defeated = new Set(); // ids like "grove:sprig"
     this.lastBattleId = null;
     this.endingKind = null;
+    this.titleIndex = 0;
+    this.titleOptions = ['Single Player', 'Multiplayer'];
+    this.mp = null;
+    this.mpError = '';
     registerGame(this);
     this.loadMap('village');
   }
@@ -84,7 +89,13 @@ class Game {
 
   update(dt) {
     if (this.state === 'title') {
-      if (this.input.pressed('confirm')) this.state = 'overworld';
+      if (this.input.pressed('up') || this.input.pressed('down')) {
+        this.titleIndex = 1 - this.titleIndex;
+      }
+      if (this.input.pressed('confirm')) {
+        if (this.titleOptions[this.titleIndex] === 'Single Player') this.state = 'overworld';
+        else this.enterMultiplayer();
+      }
       this.input.endFrame();
       return;
     }
@@ -95,11 +106,107 @@ class Game {
       if (this.input.pressed('confirm')) this.dialogue.advance();
     }
     else if (this.state === 'battle') this.updateBattle(dt);
+    else if (this.state === 'multiplayer') this.updateMultiplayer(dt);
+    else if (this.state === 'mp-error') {
+      if (this.input.pressed('confirm') || this.input.pressed('back')) this.state = 'title';
+    }
     else if (this.state === 'ending' || this.state === 'gameover') {
       if (this.input.pressed('confirm')) location.reload();
     }
 
     this.input.endFrame();
+  }
+
+  // ---- Multiplayer ----
+
+  async enterMultiplayer() {
+    this.state = 'authgate';
+    const auto = await AuthUI.tryAutoLogin();
+    if (auto) {
+      this.connectMultiplayer(auto.token, auto.user);
+      return;
+    }
+    AuthUI.show({
+      onSuccess: ({ token, user }) => this.connectMultiplayer(token, user),
+      onCancel: () => { this.state = 'title'; },
+    });
+  }
+
+  async connectMultiplayer(token, user) {
+    this.state = 'connecting';
+    this.mpUser = user;
+    const mp = new MultiplayerClient(token, {
+      onChat: (msg) => ChatUI.chat(msg),
+      onSystem: (text) => ChatUI.system(text),
+      onTpaRequest: (from) => ChatUI.system(`${from} wants to teleport to you! Type /tpaccept or /tpdeny.`),
+      onTeleport: (msg) => { this.player.x = msg.x; this.player.y = msg.y; },
+      onRoleUpdate: (role) => { if (this.mpUser) this.mpUser.role = role; },
+      onPlayerJoined: (p) => ChatUI.system(`${p.username} joined the world.`),
+      onPlayerLeft: (p) => ChatUI.system(`${p ? p.username : 'A player'} left the world.`),
+      onKicked: (reason) => { this.mpError = reason; this.state = 'mp-error'; ChatUI.hide(); },
+      onClose: (reason) => {
+        if (this.state === 'multiplayer') {
+          this.mpError = reason || 'Disconnected from the server.';
+          this.state = 'mp-error';
+          ChatUI.hide();
+        }
+      },
+    });
+    try {
+      await mp.connect();
+    } catch (err) {
+      this.mpError = err.message;
+      this.state = 'mp-error';
+      return;
+    }
+    this.mp = mp;
+    this.mapId = 'village';
+    this.map = MAPS.village;
+    this.player = { x: mp.you.x, y: mp.you.y, dir: mp.you.dir, moving: false };
+    ChatUI.clearLog();
+    ChatUI.show();
+    ChatUI.system(`Welcome, ${user.username}! You are playing on the shared multiplayer world.`);
+    ChatUI.onSubmit((text) => this.mp.sendChat(text));
+    this.state = 'multiplayer';
+  }
+
+  updateMultiplayer(dt) {
+    if (!this.mp || !this.mp.ws || this.mp.ws.readyState !== 1) return;
+    if (ChatUI.isInputFocused()) return;
+
+    if (this.input.pressed('confirm')) {
+      ChatUI.focusInput();
+      return;
+    }
+    if (this.input.pressed('back')) {
+      this.leaveMultiplayer();
+      return;
+    }
+
+    const speed = 110;
+    const p = this.player;
+    let dx = 0, dy = 0;
+    if (this.input.held('left')) { dx -= 1; p.dir = 'left'; }
+    if (this.input.held('right')) { dx += 1; p.dir = 'right'; }
+    if (this.input.held('up')) { dy -= 1; p.dir = 'up'; }
+    if (this.input.held('down')) { dy += 1; p.dir = 'down'; }
+    p.moving = dx !== 0 || dy !== 0;
+
+    if (dx !== 0 || dy !== 0) {
+      const len = Math.hypot(dx, dy);
+      dx = (dx / len) * speed * dt;
+      dy = (dy / len) * speed * dt;
+      if (!this.collides(p.x + dx, p.y)) p.x += dx;
+      if (!this.collides(p.x, p.y + dy)) p.y += dy;
+      this.mp.sendMove(p.x, p.y, p.dir);
+    }
+  }
+
+  leaveMultiplayer() {
+    if (this.mp) this.mp.close();
+    this.mp = null;
+    ChatUI.hide();
+    this.state = 'title';
   }
 
   updateOverworld(dt) {
@@ -219,13 +326,60 @@ class Game {
     const ctx = this.ctx;
     ctx.imageSmoothingEnabled = false;
 
-    if (this.state === 'title') return this.drawTitle();
+    if (this.state === 'title' || this.state === 'authgate') return this.drawTitle();
+    if (this.state === 'connecting') return this.drawMessageScreen('Connecting to the multiplayer world...');
+    if (this.state === 'mp-error') return this.drawMessageScreen(this.mpError, true);
     if (this.state === 'ending') return this.drawEnding();
     if (this.state === 'gameover') return this.drawGameOver();
     if (this.state === 'battle' && this.battle) return this.battle.draw(ctx);
 
-    this.drawOverworld();
+    if (this.state === 'multiplayer') this.drawMultiplayer();
+    else this.drawOverworld();
     if (this.state === 'dialogue') this.dialogue.draw(ctx);
+  }
+
+  drawMessageScreen(text, showRestart) {
+    const ctx = this.ctx;
+    const w = ctx.canvas.width, h = ctx.canvas.height;
+    ctx.fillStyle = '#0b0a12';
+    ctx.fillRect(0, 0, w, h);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#f2ead3';
+    ctx.font = '12px "Press Start 2P", monospace';
+    wrapText(ctx, text, w / 2, h / 2, w - 120, 22);
+    ctx.textAlign = 'left';
+    if (showRestart) {
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#9a8fae';
+      ctx.font = '10px "Press Start 2P", monospace';
+      ctx.fillText('Press Z to return to the title', w / 2, h / 2 + 60);
+      ctx.textAlign = 'left';
+    }
+  }
+
+  drawMultiplayer() {
+    this.drawOverworld();
+    if (!this.mp) return;
+    const ctx = this.ctx;
+    for (const p of this.mp.players.values()) {
+      const sprite = p.dir === 'up' ? SPR_SHU_UP : p.dir === 'down' ? SPR_SHU_DOWN : SPR_SHU_SIDE;
+      drawSprite(ctx, sprite, p.x - 24, p.y - 30, 3);
+      ctx.textAlign = 'center';
+      ctx.font = '8px "Press Start 2P", monospace';
+      ctx.fillStyle = p.role === 'owner' ? '#e8b23d' : p.role === 'admin' ? '#7d9ee8' : '#f2ead3';
+      const tag = p.role === 'owner' ? `${p.username} [OWNER]` : p.role === 'admin' ? `${p.username} [ADMIN]` : p.username;
+      ctx.fillText(tag, p.x, p.y - 36);
+      ctx.textAlign = 'left';
+    }
+    if (this.mpUser) {
+      const p = this.player;
+      ctx.textAlign = 'center';
+      ctx.font = '8px "Press Start 2P", monospace';
+      ctx.fillStyle = this.mpUser.role === 'owner' ? '#e8b23d' : this.mpUser.role === 'admin' ? '#7d9ee8' : '#f2ead3';
+      const tag = this.mpUser.role === 'owner' ? `${this.mpUser.username} [OWNER]` : this.mpUser.role === 'admin' ? `${this.mpUser.username} [ADMIN]` : this.mpUser.username;
+      ctx.fillText(tag, p.x, p.y - 36);
+      ctx.textAlign = 'left';
+    }
   }
 
   drawOverworld() {
@@ -299,10 +453,18 @@ class Game {
     ctx.font = '13px "Press Start 2P", monospace';
     ctx.fillStyle = '#f2ead3';
     ctx.fillText('a Nut Between the Worlds', w / 2, h / 2 - 24);
-    drawSprite(ctx, SPR_SHU_DOWN, w / 2 - 24, h / 2, 3);
-    ctx.font = '11px "Press Start 2P", monospace';
+    drawSprite(ctx, SPR_SHU_DOWN, w / 2 - 24, h / 2 - 20, 3);
+
+    this.titleOptions.forEach((opt, i) => {
+      ctx.font = '13px "Press Start 2P", monospace';
+      ctx.fillStyle = i === this.titleIndex ? '#e8b23d' : '#f2ead3';
+      ctx.fillText((i === this.titleIndex ? '> ' : '') + opt, w / 2, h / 2 + 100 + i * 30);
+    });
+
+    ctx.font = '9px "Press Start 2P", monospace';
+    ctx.fillStyle = '#9a8fae';
     const blink = Math.floor(performance.now() / 500) % 2 === 0;
-    if (blink) ctx.fillText('Press Z to Begin', w / 2, h / 2 + 110);
+    if (blink) ctx.fillText('Up/Down to choose - Z to confirm', w / 2, h / 2 + 175);
     ctx.textAlign = 'left';
   }
 
