@@ -50,7 +50,8 @@
   <script>
     // Override with ?server=https://your-multiplayer-server.example.com
     // when the game is hosted separately from the multiplayer server.
-    window.SHU_SERVER_URL = new URLSearchParams(location.search).get('server') || '';
+    window.SHU_SERVER_URL = new URLSearchParams(location.search).get('server')
+      || 'https://the-legend-of-shu-nut-s-awakining.onrender.com';
   </script>
   <script src="src/sprites.js"></script>
   <script src="src/maps.js"></script>
