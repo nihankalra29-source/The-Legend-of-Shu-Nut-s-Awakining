@@ -96,6 +96,37 @@ function saveUser(user) {
   persist();
 }
 
+// Creates a fixed account from BOOTSTRAP_* env vars if it doesn't exist yet.
+// Lets an owner account survive a host with no persistent disk (e.g.
+// Render's free plan resets the filesystem on every deploy) without
+// exposing a network-facing "make me owner" endpoint. Never touches an
+// account that already exists, so it won't stomp a changed password.
+function ensureBootstrapUser() {
+  const { BOOTSTRAP_USERNAME: username, BOOTSTRAP_PASSWORD: password } = process.env;
+  if (!username || !password) return;
+  const key = username.toLowerCase();
+  if (db.users[key]) return;
+  const email = process.env.BOOTSTRAP_EMAIL || '';
+  const { salt, hash } = hashPassword(password);
+  db.users[key] = {
+    id: key,
+    username,
+    email,
+    emailLower: email.trim().toLowerCase(),
+    salt,
+    hash,
+    role: process.env.BOOTSTRAP_ROLE || 'owner',
+    banned: null,
+    balance: 0,
+    inventory: emptyInventory(),
+    createdAt: Date.now(),
+  };
+  persist();
+  console.log(`Bootstrapped account "${username}" as ${db.users[key].role}.`);
+}
+
+ensureBootstrapUser();
+
 function publicUser(user) {
   if (!user) return null;
   return {
