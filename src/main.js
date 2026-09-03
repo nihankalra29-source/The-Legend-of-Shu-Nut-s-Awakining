@@ -28,6 +28,9 @@ function isSolidTile(ch) {
   return ch === '#' || ch === ' ' || ch === undefined || ch === 'C';
 }
 
+const ROLE_COLORS = { owner: '#e8b23d', manager: '#ef8b3d', admin: '#e2503f', player: '#f2ead3' };
+const ROLE_TAGS = { owner: '[OWNER]', manager: '[MANAGER]', admin: '[ADMIN]' };
+
 class Game {
   constructor(ctx) {
     this.ctx = ctx;
@@ -81,8 +84,11 @@ class Game {
       const tx = Math.floor(x / TILE_SIZE), ty = Math.floor(y / TILE_SIZE);
       const ch = this.tileAt(tx, ty);
       if (isSolidTile(ch)) return true;
-      if (ch === '~' && !Story.hasFlag('acorn_key')) return true;
-      if (this.npcAt(tx, ty)) return true;
+      // In multiplayer, whether a chasm/door actually leads anywhere is the
+      // server's call (it holds the real inventory) - the client just lets
+      // you walk up to it.
+      if (ch === '~' && this.state !== 'multiplayer' && !Story.hasFlag('acorn_key')) return true;
+      if (this.state !== 'multiplayer' && this.npcAt(tx, ty)) return true;
     }
     return false;
   }
@@ -140,6 +146,13 @@ class Game {
       onSystem: (text) => ChatUI.system(text),
       onTpaRequest: (from) => ChatUI.system(`${from} wants to teleport to you! Type /tpaccept or /tpdeny.`),
       onTeleport: (msg) => { this.player.x = msg.x; this.player.y = msg.y; },
+      onMapChanged: (msg) => {
+        this.mapId = msg.map;
+        this.map = MAPS[msg.map];
+        this.player.x = msg.x;
+        this.player.y = msg.y;
+        ChatUI.system(`You arrive in ${this.map.name}.`);
+      },
       onRoleUpdate: (role) => { if (this.mpUser) this.mpUser.role = role; },
       onPlayerJoined: (p) => ChatUI.system(`${p.username} joined the world.`),
       onPlayerLeft: (p) => ChatUI.system(`${p ? p.username : 'A player'} left the world.`),
@@ -364,22 +377,22 @@ class Game {
     for (const p of this.mp.players.values()) {
       const sprite = p.dir === 'up' ? SPR_SHU_UP : p.dir === 'down' ? SPR_SHU_DOWN : SPR_SHU_SIDE;
       drawSprite(ctx, sprite, p.x - 24, p.y - 30, 3);
-      ctx.textAlign = 'center';
-      ctx.font = '8px "Press Start 2P", monospace';
-      ctx.fillStyle = p.role === 'owner' ? '#e8b23d' : p.role === 'admin' ? '#7d9ee8' : '#f2ead3';
-      const tag = p.role === 'owner' ? `${p.username} [OWNER]` : p.role === 'admin' ? `${p.username} [ADMIN]` : p.username;
-      ctx.fillText(tag, p.x, p.y - 36);
-      ctx.textAlign = 'left';
+      this.drawNameTag(p.username, p.role, p.x, p.y);
     }
     if (this.mpUser) {
-      const p = this.player;
-      ctx.textAlign = 'center';
-      ctx.font = '8px "Press Start 2P", monospace';
-      ctx.fillStyle = this.mpUser.role === 'owner' ? '#e8b23d' : this.mpUser.role === 'admin' ? '#7d9ee8' : '#f2ead3';
-      const tag = this.mpUser.role === 'owner' ? `${this.mpUser.username} [OWNER]` : this.mpUser.role === 'admin' ? `${this.mpUser.username} [ADMIN]` : this.mpUser.username;
-      ctx.fillText(tag, p.x, p.y - 36);
-      ctx.textAlign = 'left';
+      this.drawNameTag(this.mpUser.username, this.mpUser.role, this.player.x, this.player.y);
     }
+  }
+
+  drawNameTag(username, role, x, y) {
+    const ctx = this.ctx;
+    const color = ROLE_COLORS[role] || ROLE_COLORS.player;
+    const tag = ROLE_TAGS[role] ? `${username} ${ROLE_TAGS[role]}` : username;
+    ctx.textAlign = 'center';
+    ctx.font = '8px "Press Start 2P", monospace';
+    ctx.fillStyle = color;
+    ctx.fillText(tag, x, y - 36);
+    ctx.textAlign = 'left';
   }
 
   drawOverworld() {

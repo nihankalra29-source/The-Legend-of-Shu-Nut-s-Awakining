@@ -6,14 +6,37 @@ const DATA_DIR = path.join(__dirname, 'data');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const OWNER_EMAIL = 'nihankalra2015@gmail.com';
 
+const ITEM_IDS = ['acorn_key', 'husk_lantern'];
+
+function emptyInventory() {
+  return { acorn_key: 0, husk_lantern: 0 };
+}
+
+// Fills in fields added after some accounts were already created, so old
+// save files keep working without a migration step.
+function backfillEconomy(user) {
+  if (typeof user.balance !== 'number' || user.balance < 0) user.balance = 0;
+  if (!user.inventory) user.inventory = emptyInventory();
+  for (const id of ITEM_IDS) {
+    if (typeof user.inventory[id] !== 'number' || user.inventory[id] < 0) user.inventory[id] = 0;
+  }
+  return user;
+}
+
 function load() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  if (!fs.existsSync(USERS_FILE)) return { users: {} };
+  if (!fs.existsSync(USERS_FILE)) return { users: {}, listings: [], nextListingId: 1 };
+  let data;
   try {
-    return JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
+    data = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
   } catch {
-    return { users: {} };
+    data = { users: {} };
   }
+  data.users = data.users || {};
+  data.listings = data.listings || [];
+  data.nextListingId = data.nextListingId || 1;
+  for (const user of Object.values(data.users)) backfillEconomy(user);
+  return data;
 }
 
 let db = load();
@@ -59,6 +82,8 @@ function createUser(username, email, password) {
     hash,
     role: isOwnerEmail(email) ? 'owner' : 'player',
     banned: null,
+    balance: 0,
+    inventory: emptyInventory(),
     createdAt: Date.now(),
   };
   db.users[key] = user;
@@ -80,6 +105,30 @@ function publicUser(user) {
   };
 }
 
+function getListings() {
+  return db.listings;
+}
+
+function addListing(listing) {
+  db.listings.push(listing);
+  persist();
+}
+
+function removeListing(id) {
+  const idx = db.listings.findIndex(l => l.id === id);
+  if (idx === -1) return null;
+  const [listing] = db.listings.splice(idx, 1);
+  persist();
+  return listing;
+}
+
+function nextListingId() {
+  const id = db.nextListingId;
+  db.nextListingId += 1;
+  persist();
+  return id;
+}
+
 module.exports = {
   hashPassword,
   verifyPassword,
@@ -89,5 +138,10 @@ module.exports = {
   createUser,
   saveUser,
   publicUser,
+  getListings,
+  addListing,
+  removeListing,
+  nextListingId,
+  ITEM_IDS,
   OWNER_EMAIL,
 };

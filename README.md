@@ -40,28 +40,39 @@ Signing up with the email **`nihankalra2015@gmail.com`** automatically
 grants the **OWNER** badge (gold, shown next to that player's name). Every
 other sign-up starts as a regular player.
 
+Roles, low to high: **PLAYER** (no badge) → **ADMIN** (red badge) →
+**MANAGER** (orange badge) → **OWNER** (gold badge, permanent, exactly one).
+Whoever can act on a role can act on everyone below it, never at or above:
+an admin can moderate players; a manager can moderate players *and* admins;
+only the owner can touch a manager, and nobody can touch the owner.
+
 Anyone can use:
 - `/tpa <player>` — send a friendly teleport request to another player
 - `/tpaccept` / `/tpdeny` — accept or decline the most recent request sent to you
+- `/shop` — see what gold buys; `/shop buy <key|lantern>` to purchase
+- `/list <key|lantern> <price>` — put an item you own up for auction
+- `/ah` — browse auction listings; `/ah buy <id>`; `/ah cancel <id>` on your own listing
 - `/help` — list the commands available to your role
 
-The **OWNER** can additionally use:
-- `/op <player>` — promote a player to **ADMIN** (blue badge)
-- `/deop <player>` — demote an admin back to a regular player
-
-**ADMINS and the OWNER** can also use:
+**ADMIN, MANAGER, and OWNER** can also use:
 - `/tp <player>` — teleport straight to a player, no request needed
+- `/eco give <player> <amount>` / `/eco take <player> <amount>` — grant or remove gold (never below 0)
 - `/ban <player> [reason]` — ban a player permanently
 - `/tempban <player> <time> [reason]` — ban temporarily, e.g. `/tempban Alex 2h griefing` (`s`/`m`/`h`/`d` units)
 - `/pardon <player>` — remove a player's ban
 
-Admins can't act on the owner or on other admins (only the owner can), so
-one admin can never ban, demote, or otherwise touch another admin or the
-owner.
+The **OWNER** can additionally use:
+- `/op <player>` — promote a player to **ADMIN**
+- `/op <player> manager` — promote a player to **MANAGER**
+- `/deop <player>` — demote an admin or manager back to a regular player
 
-Accounts, roles, and bans are stored server-side in `server/data/users.json`
-(passwords are salted and hashed, never stored in plain text) and persist
-across restarts.
+Gold, inventory (Acorn Keys, Husk Lanterns), roles, and bans are stored
+server-side in `server/data/users.json` (passwords are salted and hashed,
+never stored in plain text) and persist across restarts. Keys and lanterns
+bought or won at auction are real, consumable items — spending one at the
+chasm or the Sundered Throne's door in the shared multiplayer world uses it
+up, same as the single-player campaign's item flags but tracked server-side
+so it can't be spoofed by the client.
 
 ## Run it locally
 
@@ -122,9 +133,10 @@ src/auth-ui.js          sign-up/log-in overlay + session handling
 src/multiplayer.js      WebSocket client + chat UI
 src/main.js             input, game state machine, rendering, loop
 
-server/server.js       HTTP + WebSocket server, REST auth endpoints
-server/store.js         user accounts (hashing, roles, bans), JSON-file persisted
+server/server.js       HTTP + WebSocket server, REST auth endpoints, map-transition gating
+server/store.js         user accounts (hashing, roles, bans, gold, inventory, auction listings), JSON-file persisted
 server/auth.js          session tokens
-server/world.js         online-player registry, ban-status checks
-server/commands.js      /tpa, /tp, /ban, /tempban, /pardon, /op, /deop, /help
+server/world.js         online-player registry (per-map), ban-status checks
+server/worldmaps.js     server-side copy of map transitions, for validating item-gated crossings
+server/commands.js      /tpa, /tp, /ban, /tempban, /pardon, /op, /deop, /eco, /shop, /list, /ah, /help
 ```

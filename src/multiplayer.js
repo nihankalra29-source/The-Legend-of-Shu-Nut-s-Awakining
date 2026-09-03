@@ -9,6 +9,7 @@ function escapeHtml(s) {
 
 function badgeHtml(role) {
   if (role === 'owner') return ' <span class="owner-badge">[OWNER]</span>';
+  if (role === 'manager') return ' <span class="manager-badge">[MANAGER]</span>';
   if (role === 'admin') return ' <span class="admin-badge">[ADMIN]</span>';
   return '';
 }
@@ -88,6 +89,12 @@ class MultiplayerClient {
       case 'teleport':
         if (this.you) { this.you.x = msg.x; this.you.y = msg.y; }
         if (h.onTeleport) h.onTeleport(msg);
+        break;
+      case 'mapChanged':
+        this.players.clear();
+        for (const p of msg.players) this.players.set(p.id, p);
+        if (this.you) { this.you.map = msg.map; this.you.x = msg.x; this.you.y = msg.y; }
+        if (h.onMapChanged) h.onMapChanged(msg);
         break;
       case 'kicked':
         if (h.onKicked) h.onKicked(msg.reason);

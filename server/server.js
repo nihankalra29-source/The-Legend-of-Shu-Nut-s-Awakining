@@ -7,6 +7,7 @@ const store = require('./store');
 const auth = require('./auth');
 const world = require('./world');
 const commands = require('./commands');
+const worldmaps = require('./worldmaps');
 
 const PORT = process.env.PORT || 3000;
 const SPAWN = { x: 336, y: 272 }; // village map, tile (10, 8)
@@ -100,7 +101,7 @@ wss.on('connection', (ws) => {
       const id = crypto.randomUUID();
       const jitter = () => Math.floor(Math.random() * 48 - 24);
       const entry = {
-        id, ws, username: user.username, role: user.role,
+        id, ws, username: user.username, role: user.role, map: 'village',
         x: SPAWN.x + jitter(), y: SPAWN.y + jitter(), dir: 'down',
       };
       world.online.set(id, entry);
@@ -109,9 +110,9 @@ wss.on('connection', (ws) => {
       ws.send(JSON.stringify({
         type: 'welcome',
         you: world.publicPlayer(entry),
-        players: [...world.online.values()].filter(p => p.id !== id).map(world.publicPlayer),
+        players: world.playersInMap(entry.map, id),
       }));
-      world.broadcast({ type: 'playerJoined', player: world.publicPlayer(entry) }, id);
+      world.broadcastToMap(entry.map, { type: 'playerJoined', player: world.publicPlayer(entry) }, id);
       return;
     }
 
@@ -120,10 +121,35 @@ wss.on('connection', (ws) => {
     if (!entry) return;
 
     if (msg.type === 'move') {
-      entry.x = Number(msg.x) || entry.x;
-      entry.y = Number(msg.y) || entry.y;
+      const x = Number(msg.x);
+      const y = Number(msg.y);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return;
       entry.dir = msg.dir || entry.dir;
-      world.broadcast({ type: 'playerMoved', id: entry.id, x: entry.x, y: entry.y, dir: entry.dir }, entry.id);
+
+      const tx = Math.floor(x / worldmaps.TILE_SIZE);
+      const ty = Math.floor(y / worldmaps.TILE_SIZE);
+      const transition = worldmaps.findTransition(entry.map, tx, ty);
+      const user = store.findByUsername(entry.username);
+
+      if (transition && user && (!transition.requires || user.inventory[transition.requires] > 0)) {
+        if (transition.requires) {
+          user.inventory[transition.requires] -= 1;
+          store.saveUser(user);
+        }
+        const destX = transition.toX * worldmaps.TILE_SIZE + worldmaps.TILE_SIZE / 2;
+        const destY = transition.toY * worldmaps.TILE_SIZE + worldmaps.TILE_SIZE / 2;
+        world.changeMap(entry, transition.toMap, destX, destY);
+        ws.send(JSON.stringify({
+          type: 'mapChanged',
+          map: transition.toMap,
+          x: destX,
+          y: destY,
+          players: world.playersInMap(transition.toMap, entry.id),
+        }));
+        return;
+      }
+
+      world.changeMap(entry, entry.map, x, y);
       return;
     }
 
@@ -142,8 +168,9 @@ wss.on('connection', (ws) => {
   ws.on('close', () => {
     clearTimeout(authTimeout);
     if (joined) {
+      const entry = world.online.get(ws._playerId);
       world.online.delete(ws._playerId);
-      world.broadcast({ type: 'playerLeft', id: ws._playerId });
+      if (entry) world.broadcastToMap(entry.map, { type: 'playerLeft', id: ws._playerId });
     }
   });
 });

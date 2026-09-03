@@ -176,7 +176,8 @@ html, body {
 }
 
 #chat-log .owner-badge { color: #e8b23d; }
-#chat-log .admin-badge { color: #7d9ee8; }
+#chat-log .manager-badge { color: #ef8b3d; }
+#chat-log .admin-badge { color: #e2503f; }
 #chat-log .sys-line { color: #9a8fae; font-style: italic; }
 
 #chat-input {
