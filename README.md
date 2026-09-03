@@ -24,7 +24,7 @@ the King — by force, or by reminding him what a whole world was worth.
 - Move: Arrow Keys or WASD
 - Confirm / Interact / Advance text: `Z` or `Enter`
 - Back (in menus) / Leave multiplayer: `X`, `Shift`, or `Escape`
-- Chat / commands (multiplayer): `Enter` to open the chat box, `Enter` again to send
+- Chat / commands (multiplayer): `T` to open the chat box, `Enter` to send
 
 ## Single Player vs. Multiplayer
 
@@ -49,8 +49,8 @@ only the owner can touch a manager, and nobody can touch the owner.
 Anyone can use:
 - `/tpa <player>` — send a friendly teleport request to another player
 - `/tpaccept` / `/tpdeny` — accept or decline the most recent request sent to you
-- `/shop` — see what gold buys; `/shop buy <key|lantern>` to purchase
-- `/list <key|lantern> <price>` — put an item you own up for auction
+- `/shop` — see what gold buys; `/shop buy <key|lantern|totem>` to purchase
+- `/list <key|lantern|totem> <price>` — put an item you own up for auction
 - `/ah` — browse auction listings; `/ah buy <id>`; `/ah cancel <id>` on your own listing
 - `/help` — list the commands available to your role
 
@@ -66,13 +66,19 @@ The **OWNER** can additionally use:
 - `/op <player> manager` — promote a player to **MANAGER**
 - `/deop <player>` — demote an admin or manager back to a regular player
 
-Gold, inventory (Acorn Keys, Husk Lanterns), roles, and bans are stored
-server-side in `server/data/users.json` (passwords are salted and hashed,
-never stored in plain text) and persist across restarts. Keys and lanterns
-bought or won at auction are real, consumable items — spending one at the
-chasm or the Sundered Throne's door in the shared multiplayer world uses it
-up, same as the single-player campaign's item flags but tracked server-side
-so it can't be spoofed by the client.
+Gold, inventory (Acorn Keys, Husk Lanterns, Totems of Undying), roles, and
+bans are stored server-side in `server/data/users.json` (passwords are
+salted and hashed, never stored in plain text) and persist across restarts.
+Keys and lanterns bought or won at auction are real, consumable items —
+spending one at the chasm or the Sundered Throne's door in the shared
+multiplayer world uses it up, same as the single-player campaign's item
+flags but tracked server-side so it can't be spoofed by the client.
+
+The **Totem of Undying** (1000g — by far the most expensive shop item) is a
+one-time save: if you're logged into multiplayer at least once (so the
+game has your account token), losing a single-player battle spends a Totem
+from your account instead of ending the run, healing you to full HP. No
+Totem, or never logged in? Losing plays out as normal.
 
 ## Run it locally
 

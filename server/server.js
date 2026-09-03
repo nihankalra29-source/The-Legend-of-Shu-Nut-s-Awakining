@@ -64,12 +64,31 @@ app.post('/api/login', (req, res) => {
   res.json({ token, user: store.publicUser(user) });
 });
 
-app.get('/api/me', (req, res) => {
+function requireUser(req, res, next) {
   const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
   const userId = auth.getUserIdForToken(token);
   const user = userId && store.findByUsername(userId);
   if (!user) return res.status(401).json({ error: 'Not logged in.' });
-  res.json({ user: store.publicUser(user) });
+  req.user = user;
+  next();
+}
+
+app.get('/api/me', requireUser, (req, res) => {
+  res.json({ user: store.publicUser(req.user) });
+});
+
+app.get('/api/inventory', requireUser, (req, res) => {
+  res.json({ balance: req.user.balance, inventory: req.user.inventory });
+});
+
+// Single-player calls this when a battle would otherwise be lost, to spend
+// a Totem of Undying bought (or won at auction) in multiplayer - the one
+// place items bridge back into the offline campaign.
+app.post('/api/use-totem', requireUser, (req, res) => {
+  if (req.user.inventory.totem < 1) return res.status(400).json({ error: 'No Totem of Undying to use.' });
+  req.user.inventory.totem -= 1;
+  store.saveUser(req.user);
+  res.json({ ok: true, inventory: req.user.inventory });
 });
 
 const server = app.listen(PORT, () => {

@@ -5,6 +5,7 @@ const KEYMAP = {
   right: ['ArrowRight', 'KeyD'],
   confirm: ['KeyZ', 'Enter'],
   back: ['KeyX', 'ShiftLeft', 'ShiftRight', 'Escape'],
+  chat: ['KeyT'],
 };
 
 class Input {
@@ -187,7 +188,7 @@ class Game {
     if (!this.mp || !this.mp.ws || this.mp.ws.readyState !== 1) return;
     if (ChatUI.isInputFocused()) return;
 
-    if (this.input.pressed('confirm')) {
+    if (this.input.pressed('chat')) {
       ChatUI.focusInput();
       return;
     }
@@ -330,7 +331,36 @@ class Game {
         this.startDialogue('__temp');
       }
       this.battle = null;
-    } else if (this.battle.state === 'lost') {
+    } else if (this.battle.state === 'lost' && !this.awaitingTotem) {
+      this.awaitingTotem = true;
+      this.tryTotemRevive();
+    }
+  }
+
+  // A Totem of Undying is bought/won through the multiplayer shop and
+  // auction house, but it also has to save you in the single-player
+  // campaign - so a battle loss checks the player's server-side inventory
+  // (if they've ever logged into multiplayer) before finalizing game over.
+  async tryTotemRevive() {
+    const token = localStorage.getItem('shu_token');
+    let revived = false;
+    if (token) {
+      try {
+        const base = (window.SHU_SERVER_URL || '').replace(/\/$/, '');
+        const res = await fetch(base + '/api/use-totem', { method: 'POST', headers: { Authorization: 'Bearer ' + token } });
+        revived = res.ok;
+      } catch {
+        revived = false;
+      }
+    }
+    this.awaitingTotem = false;
+    if (!this.battle || this.battle.state !== 'lost') return;
+    if (revived) {
+      this.battle.playerHp = this.battle.playerMaxHp;
+      this.battle.showMessage('The Totem of Undying flares gold... you are back on your feet!', () => {
+        this.battle.state = 'menu';
+      });
+    } else {
       this.state = 'gameover';
     }
   }

@@ -4,10 +4,15 @@ const world = require('./world');
 const RANK = { player: 0, admin: 1, manager: 2, owner: 3 };
 
 const SHOP_ITEMS = {
-  acorn_key: { label: 'Acorn Key', price: 50 },
-  husk_lantern: { label: 'Husk Lantern', price: 75 },
+  acorn_key: { label: 'Acorn Key', price: 50, buyAs: 'key' },
+  husk_lantern: { label: 'Husk Lantern', price: 75, buyAs: 'lantern' },
+  totem: { label: 'Totem of Undying', price: 1000, buyAs: 'totem' },
 };
-const ITEM_ALIASES = { key: 'acorn_key', acorn_key: 'acorn_key', lantern: 'husk_lantern', husk_lantern: 'husk_lantern' };
+const ITEM_ALIASES = {
+  key: 'acorn_key', acorn_key: 'acorn_key',
+  lantern: 'husk_lantern', husk_lantern: 'husk_lantern',
+  totem: 'totem', 'totem_of_undying': 'totem',
+};
 
 function resolveItem(name) {
   if (!name) return null;
@@ -59,8 +64,8 @@ function handleCommand(ctx, rawText) {
     const lines = [
       '/tpa <player> - request to teleport to a player',
       '/tpaccept, /tpdeny - respond to a teleport request',
-      '/shop - see what gold buys, /shop buy <key|lantern>',
-      '/list <key|lantern> <price> - list an item on the auction house',
+      '/shop - see what gold buys, /shop buy <key|lantern|totem>',
+      '/list <key|lantern|totem> <price> - list an item on the auction house',
       '/ah - browse listings, /ah buy <id>, /ah cancel <id>',
     ];
     if (actorRank >= RANK.admin) {
@@ -189,13 +194,13 @@ function handleCommand(ctx, rawText) {
   if (cmd === '/shop') {
     if (!parts[1]) {
       const balance = actorUser().balance;
-      const lines = Object.entries(SHOP_ITEMS).map(([id, item]) => `${item.label} - ${item.price}g  (/shop buy ${id === 'acorn_key' ? 'key' : 'lantern'})`);
+      const lines = Object.entries(SHOP_ITEMS).map(([id, item]) => `${item.label} - ${item.price}g  (/shop buy ${item.buyAs})`);
       lines.push(`Your balance: ${balance}g`);
       return send(lines.join('\n'));
     }
-    if (parts[1].toLowerCase() !== 'buy') return send('Usage: /shop  or  /shop buy <key|lantern>');
+    if (parts[1].toLowerCase() !== 'buy') return send('Usage: /shop  or  /shop buy <key|lantern|totem>');
     const itemId = resolveItem(parts[2]);
-    if (!itemId) return send('Usage: /shop buy <key|lantern>');
+    if (!itemId) return send('Usage: /shop buy <key|lantern|totem>');
     const user = actorUser();
     const price = SHOP_ITEMS[itemId].price;
     if (user.balance < price) return send(`You need ${price}g for a ${itemLabel(itemId)} - you have ${user.balance}g.`);
@@ -209,7 +214,7 @@ function handleCommand(ctx, rawText) {
   if (cmd === '/list') {
     const itemId = resolveItem(parts[1]);
     const price = parseInt(parts[2], 10);
-    if (!itemId || !Number.isInteger(price) || price <= 0) return send('Usage: /list <key|lantern> <price>');
+    if (!itemId || !Number.isInteger(price) || price <= 0) return send('Usage: /list <key|lantern|totem> <price>');
     const user = actorUser();
     if (user.inventory[itemId] < 1) return send(`You don't have a ${itemLabel(itemId)} to list.`);
     user.inventory[itemId] -= 1;

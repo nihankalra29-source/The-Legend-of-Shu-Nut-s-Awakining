@@ -6,10 +6,10 @@ const DATA_DIR = path.join(__dirname, 'data');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const OWNER_EMAIL = 'nihankalra2015@gmail.com';
 
-const ITEM_IDS = ['acorn_key', 'husk_lantern'];
+const ITEM_IDS = ['acorn_key', 'husk_lantern', 'totem'];
 
 function emptyInventory() {
-  return { acorn_key: 0, husk_lantern: 0 };
+  return { acorn_key: 0, husk_lantern: 0, totem: 0 };
 }
 
 // Fills in fields added after some accounts were already created, so old

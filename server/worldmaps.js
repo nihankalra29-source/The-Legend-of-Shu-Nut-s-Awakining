@@ -7,8 +7,8 @@ const TILE_SIZE = 32;
 
 const TRANSITIONS = {
   village: [
-    { x: 8, y: 11, toMap: 'hollow', toX: 10, toY: 1, requires: 'acorn_key' },
-    { x: 9, y: 11, toMap: 'hollow', toX: 10, toY: 1, requires: 'acorn_key' },
+    { x: 9, y: 11, toMap: 'hollow', toX: 10, toY: 2, requires: 'acorn_key' },
+    { x: 10, y: 11, toMap: 'hollow', toX: 10, toY: 2, requires: 'acorn_key' },
     { x: 0, y: 7, toMap: 'grove', toX: 18, toY: 7 },
   ],
   grove: [
@@ -16,8 +16,8 @@ const TRANSITIONS = {
   ],
   hollow: [
     { x: 10, y: 1, toMap: 'village', toX: 8, toY: 10 },
-    { x: 9, y: 12, toMap: 'ruins', toX: 10, toY: 12, requires: 'husk_lantern' },
-    { x: 10, y: 12, toMap: 'ruins', toX: 10, toY: 12, requires: 'husk_lantern' },
+    { x: 9, y: 12, toMap: 'ruins', toX: 10, toY: 11, requires: 'husk_lantern' },
+    { x: 10, y: 12, toMap: 'ruins', toX: 10, toY: 11, requires: 'husk_lantern' },
   ],
   ruins: [
     { x: 9, y: 12, toMap: 'hollow', toX: 9, toY: 11 },
