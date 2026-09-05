@@ -1,5 +1,6 @@
 const store = require('./store');
 const world = require('./world');
+const worldmaps = require('./worldmaps');
 
 const RANK = { player: 0, admin: 1, manager: 2, owner: 3 };
 
@@ -71,8 +72,11 @@ function handleCommand(ctx, rawText) {
     if (actorRank >= RANK.admin) {
       lines.push(
         '/tp <player> - teleport straight to a player',
+        '/bbf - warp yourself into the Sundered Throne, boss and all',
         '/eco give <player> <amount> - give gold',
         '/eco take <player> <amount> - take gold (never below 0)',
+        '/kill <player> - send them back to the village, stripped of items',
+        '/strip <player> - like /kill, but also empties their gold',
         '/ban <player> [reason] - ban a player',
         '/tempban <player> <time e.g. 10m/2h/1d> [reason] - temporarily ban',
         '/pardon <player> - remove a ban'
@@ -135,6 +139,17 @@ function handleCommand(ctx, rawText) {
       ? { type: 'teleport', x: target.x, y: target.y }
       : { type: 'mapChanged', map: target.map, x: target.x, y: target.y, players: world.playersInMap(target.map, actor.id) });
     send(`Teleported to ${target.username}.`);
+    return;
+  }
+
+  if (cmd === '/bbf') {
+    if (actorRank < RANK.admin) return send('You do not have permission to use /bbf.');
+    const { x: tx, y: ty } = worldmaps.RUINS_BOSS_SPAWN;
+    const x = tx * worldmaps.TILE_SIZE + worldmaps.TILE_SIZE / 2;
+    const y = ty * worldmaps.TILE_SIZE + worldmaps.TILE_SIZE / 2;
+    world.changeMap(actor, 'ruins', x, y);
+    ctx.send({ type: 'mapChanged', map: 'ruins', x, y, players: world.playersInMap('ruins', actor.id) });
+    send('You step into the Sundered Throne.');
     return;
   }
 
@@ -270,6 +285,41 @@ function handleCommand(ctx, rawText) {
     }
 
     return send('Usage: /ah, /ah buy <id>, or /ah cancel <id>');
+  }
+
+  if (cmd === '/kill' || cmd === '/strip') {
+    if (actorRank < RANK.admin) return send('You do not have permission to use this command.');
+    const targetName = parts[1];
+    if (!targetName) return send(`Usage: ${cmd} <player>`);
+    const target = world.findOnlineByName(targetName);
+    if (!target) return send(`${targetName} is not online.`);
+    const user = store.findByUsername(targetName);
+    if ((RANK[user.role] ?? 0) >= actorRank) return send(`You can't act on ${user.username}.`);
+
+    for (const id of store.ITEM_IDS) user.inventory[id] = 0;
+    let strippedGold = 0;
+    if (cmd === '/strip') {
+      strippedGold = user.balance;
+      user.balance = 0;
+    }
+    store.saveUser(user);
+
+    const { x: tx, y: ty } = worldmaps.VILLAGE_SPAWN;
+    const x = tx * worldmaps.TILE_SIZE + worldmaps.TILE_SIZE / 2;
+    const y = ty * worldmaps.TILE_SIZE + worldmaps.TILE_SIZE / 2;
+    const sameMap = target.map === 'village';
+    world.changeMap(target, 'village', x, y);
+    world.sendTo(target.id, sameMap
+      ? { type: 'teleport', x, y }
+      : { type: 'mapChanged', map: 'village', x, y, players: world.playersInMap('village', target.id) });
+    world.sendTo(target.id, { type: 'system', text: cmd === '/kill'
+      ? `${actor.username} killed you! Your items scattered into the Hollow.`
+      : `${actor.username} killed and stripped you! Your items and ${strippedGold}g are gone.` });
+
+    send(cmd === '/kill'
+      ? `${user.username} was killed and stripped of items.`
+      : `${user.username} was killed, stripped of items, and lost ${strippedGold}g.`);
+    return;
   }
 
   if (cmd === '/ban' || cmd === '/tempban') {

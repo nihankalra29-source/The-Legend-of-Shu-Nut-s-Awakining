@@ -31,4 +31,8 @@ function findTransition(mapId, tx, ty) {
   return list.find(t => t.x === tx && t.y === ty) || null;
 }
 
-module.exports = { TILE_SIZE, TRANSITIONS, findTransition };
+// Tile coordinates, not pixels - matches src/maps.js's playerStart/npc spots.
+const VILLAGE_SPAWN = { x: 10, y: 8 };
+const RUINS_BOSS_SPAWN = { x: 10, y: 8 }; // just below the Withered King at (10, 7)
+
+module.exports = { TILE_SIZE, TRANSITIONS, findTransition, VILLAGE_SPAWN, RUINS_BOSS_SPAWN };

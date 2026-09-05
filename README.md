@@ -56,7 +56,10 @@ Anyone can use:
 
 **ADMIN, MANAGER, and OWNER** can also use:
 - `/tp <player>` — teleport straight to a player, no request needed
+- `/bbf` — warp yourself straight into the Sundered Throne, Withered King and all
 - `/eco give <player> <amount>` / `/eco take <player> <amount>` — grant or remove gold (never below 0)
+- `/kill <player>` — send them back to the village, stripped of every item
+- `/strip <player>` — like `/kill`, but also empties their gold
 - `/ban <player> [reason]` — ban a player permanently
 - `/tempban <player> <time> [reason]` — ban temporarily, e.g. `/tempban Alex 2h griefing` (`s`/`m`/`h`/`d` units)
 - `/pardon <player>` — remove a player's ban
