@@ -214,6 +214,8 @@ class Game {
       if (!this.collides(p.x, p.y + dy)) p.y += dy;
       this.mp.sendMove(p.x, p.y, p.dir);
     }
+
+    if (this.input.pressed('confirm')) this.tryInteract();
   }
 
   leaveMultiplayer() {
@@ -272,10 +274,15 @@ class Game {
   }
 
   tryInteract() {
+    const inMultiplayer = this.state === 'multiplayer';
     const [fx, fy] = this.facingTile();
     const npc = this.npcAt(fx, fy);
     if (npc) {
       if (npc.isEnemy) {
+        if (inMultiplayer) {
+          ChatUI.system(`${npc.name} looks far too dangerous to face alone out here. Try Single Player, or ask an admin for /bbf.`);
+          return;
+        }
         this.pendingBattleId = npc.battleId;
         this.pendingBattleMapKey = this.mapId + ':' + (npc.battleId || npc.name);
         if (npc.dialogueId) this.startDialogue(npc.dialogueId);
@@ -287,6 +294,11 @@ class Game {
     }
     const chest = this.chestAt(fx, fy);
     if (chest && !chest.taken) {
+      if (inMultiplayer) {
+        const label = chest.itemId === 'acorn_key' ? 'Acorn Key' : 'Husk Lantern';
+        ChatUI.system(`This chest is just for show out here - buy a ${label} from /shop instead.`);
+        return;
+      }
       chest.taken = true;
       Story.setFlag(chest.itemId);
       this.startDialogue(chest.itemId === 'acorn_key' ? 'chest_key' : 'chest_lantern');
@@ -294,9 +306,10 @@ class Game {
   }
 
   startDialogue(id) {
+    const returnState = this.state === 'multiplayer' ? 'multiplayer' : 'overworld';
     this.state = 'dialogue';
     this.dialogue.start(id, () => {
-      if (this.state === 'dialogue') this.state = 'overworld';
+      if (this.state === 'dialogue') this.state = returnState;
     });
   }
 
@@ -376,7 +389,7 @@ class Game {
     if (this.state === 'gameover') return this.drawGameOver();
     if (this.state === 'battle' && this.battle) return this.battle.draw(ctx);
 
-    if (this.state === 'multiplayer') this.drawMultiplayer();
+    if (this.mp && (this.state === 'multiplayer' || this.state === 'dialogue')) this.drawMultiplayer();
     else this.drawOverworld();
     if (this.state === 'dialogue') this.dialogue.draw(ctx);
   }

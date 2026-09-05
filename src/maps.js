@@ -107,8 +107,8 @@ const MAPS = {
     ],
     transitions: [
       { x: 10, y: 1, toMap: 'village', toX: 8, toY: 10 },
-      { x: 9, y: 12, toMap: 'ruins', toX: 10, toY: 11, requires: 'husk_lantern', lockedDialogue: 'ruins_locked' },
-      { x: 10, y: 12, toMap: 'ruins', toX: 10, toY: 11, requires: 'husk_lantern', lockedDialogue: 'ruins_locked' },
+      { x: 9, y: 12, toMap: 'ruins', toX: 10, toY: 8, requires: 'husk_lantern', lockedDialogue: 'ruins_locked' },
+      { x: 10, y: 12, toMap: 'ruins', toX: 10, toY: 8, requires: 'husk_lantern', lockedDialogue: 'ruins_locked' },
     ],
     encounters: [],
     playerStart: { x: 10, y: 2 },
@@ -140,8 +140,8 @@ const MAPS = {
     ],
     chests: [],
     transitions: [
-      { x: 9, y: 12, toMap: 'hollow', toX: 9, toY: 11 },
-      { x: 10, y: 12, toMap: 'hollow', toX: 10, toY: 11 },
+      { x: 9, y: 12, toMap: 'hollow', toX: 9, toY: 9 },
+      { x: 10, y: 12, toMap: 'hollow', toX: 10, toY: 9 },
     ],
     encounters: [],
     playerStart: { x: 10, y: 11 },
