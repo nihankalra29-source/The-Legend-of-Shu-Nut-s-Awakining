@@ -180,6 +180,14 @@ html, body {
 #chat-log .admin-badge { color: #e2503f; }
 #chat-log .sys-line { color: #9a8fae; font-style: italic; }
 
+#chat-log .chat-line {
+  opacity: 1;
+  transition: opacity 0.5s ease-out;
+}
+#chat-log .chat-line.chat-line-fade {
+  opacity: 0;
+}
+
 #chat-input {
   pointer-events: auto;
   font-family: inherit;

@@ -134,13 +134,22 @@ const ChatUI = (() => {
   function show() { bind().overlay.hidden = false; }
   function hide() { bind().overlay.hidden = true; }
 
+  const HOLD_MS = 3500;
+  const FADE_MS = 500;
+
   function line(html) {
     const e = bind();
     const div = document.createElement('div');
+    div.className = 'chat-line';
     div.innerHTML = html;
     e.log.appendChild(div);
     while (e.log.children.length > 50) e.log.removeChild(e.log.firstChild);
     e.log.scrollTop = e.log.scrollHeight;
+
+    setTimeout(() => {
+      div.classList.add('chat-line-fade');
+      setTimeout(() => div.remove(), FADE_MS);
+    }, HOLD_MS);
   }
 
   function system(text) { line(`<span class="sys-line">* ${escapeHtml(text).replace(/\n/g, '<br>* ')}</span>`); }
